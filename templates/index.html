@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}Tableau de bord — Job2Mail{% endblock %}
+{% block content %}
+  <div class="header-row">
+    <h1>Tableau de bord</h1>
+    <form method="post" action="{{ url_for('verifier_reponses') }}">
+      <button type="submit">{{ icons.refresh() }}Vérifier les réponses</button>
+    </form>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><span class="n">{{ counts.get('draft', 0) }}</span><span class="l">à relire</span></div>
+    <div class="stat"><span class="n">{{ counts.get('ready', 0) }}</span><span class="l">prêts</span></div>
+    <div class="stat"><span class="n">{{ counts.get('sent', 0) }}</span><span class="l">envoyés</span></div>
+    <div class="stat"><span class="n">{{ counts.get('replied', 0) }}</span><span class="l">réponses</span></div>
+    <div class="stat"><span class="n">{{ counts.get('declined', 0) }}</span><span class="l">écartés</span></div>
+  </div>
+
+  <div class="quotas">
+    <div class="quota {{ 'quota-reached' if quotas.send_reached else '' }}">
+      <div class="quota-row">
+        <span>{{ icons.paper_plane() }}Envois aujourd'hui</span>
+        <span class="quota-count">{{ quotas.send.used }} / {{ quotas.send.limit }}</span>
+      </div>
+      <div class="quota-bar"><div class="quota-fill" style="width: {{ (quotas.send.used / quotas.send.limit * 100) if quotas.send.limit else 0 }}%"></div></div>
+      {% if quotas.send_reached %}<p class="quota-hint">{{ icons.alert_triangle() }}Quota atteint — revenez demain pour envoyer d'autres candidatures.</p>{% endif %}
+    </div>
+    {% for p in quotas.providers %}
+      <div class="quota {{ 'quota-reached' if p.used >= p.limit else '' }}">
+        <div class="quota-row">
+          <span>{{ icons.gauge() }}{{ p.name }} (ce mois-ci)</span>
+          <span class="quota-count">{{ p.used }} / {{ p.limit }}</span>
+        </div>
+        <div class="quota-bar"><div class="quota-fill" style="width: {{ (p.used / p.limit * 100) if p.limit else 0 }}%"></div></div>
+        {% if p.used >= p.limit %}<p class="quota-hint">{{ icons.alert_triangle() }}Quota mensuel atteint — recherche de contacts {{ p.name }} suspendue jusqu'au mois prochain.</p>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="filters">
+    <a href="{{ url_for('index') }}" class="{{ 'active' if not current_status else '' }}">Toutes</a>
+    <a href="{{ url_for('index', statut='draft') }}" class="{{ 'active' if current_status == 'draft' else '' }}">À relire</a>
+    <a href="{{ url_for('index', statut='ready') }}" class="{{ 'active' if current_status == 'ready' else '' }}">Prêts</a>
+    <a href="{{ url_for('index', statut='sent') }}" class="{{ 'active' if current_status == 'sent' else '' }}">Envoyés</a>
+    <a href="{{ url_for('index', statut='replied') }}" class="{{ 'active' if current_status == 'replied' else '' }}">Réponses</a>
+    <a href="{{ url_for('index', statut='declined') }}" class="{{ 'active' if current_status == 'declined' else '' }}">Écartés</a>
+  </div>
+
+  {% if followup_candidates %}
+    <section class="followups">
+      <h2>{{ icons.chat() }}Relances à faire</h2>
+      <p class="hint">Envoyées depuis au moins {{ followup_days }} jours, sans réponse.</p>
+      <div class="table-scroll">
+      <table class="drafts">
+        <thead>
+          <tr><th>Entreprise</th><th>Contact</th><th>Envoyé le</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for f in followup_candidates %}
+          <tr>
+            <td>{{ f.company_name }}</td>
+            <td>{{ f.contact_email }}</td>
+            <td>{{ f.sent_at[:10] if f.sent_at else '—' }}</td>
+            <td>
+              <form method="post" action="{{ url_for('generer_relance', draft_id=f.id) }}">
+                <button type="submit">{{ icons.paper_plane() }}Générer une relance</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if not drafts %}
+    <div class="empty-state">
+      {{ icons.inbox() }}
+      <p>Aucun brouillon pour l'instant. Lancez une <a href="{{ url_for('recherche') }}">nouvelle recherche</a> pour en générer.</p>
+    </div>
+  {% else %}
+    <div class="table-scroll">
+    <table class="drafts">
+      <thead>
+        <tr>
+          <th>Entreprise</th>
+          <th>Ville</th>
+          <th>Contact</th>
+          <th>Statut</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in drafts %}
+        <tr>
+          <td>
+            {{ d.company_name }}
+            {% if d.followup_number %}<span class="muted">(relance {{ d.followup_number }})</span>{% endif %}
+          </td>
+          <td>{{ d.city or '—' }}</td>
+          <td>
+            {% if d.contact_email %}
+              {{ d.contact_email }}
+              {% if d.first_name %}<span class="muted">({{ d.first_name }} {{ d.last_name or '' }})</span>{% endif %}
+            {% else %}
+              <span class="muted">aucun</span>
+            {% endif %}
+          </td>
+          <td><span class="badge badge-{{ d.status }}">{{ status_labels.get(d.status, d.status) }}</span></td>
+          <td class="row-actions">
+            <a href="{{ url_for('draft_detail', draft_id=d.id) }}" class="icon-btn" title="Ouvrir">{{ icons.eye() }}ouvrir</a>
+            {% if d.status not in ('declined',) %}
+              <form method="post" action="{{ url_for('ecarter_draft', draft_id=d.id) }}">
+                <button type="submit" class="icon-btn" title="Ne pas donner suite à cette candidature">{{ icons.x_circle() }}écarter</button>
+              </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('supprimer_entreprise', company_id=d.company_id) }}"
+              onsubmit="return confirm('Supprimer définitivement cette entreprise et ses brouillons ?');">
+              <button type="submit" class="icon-btn danger-link" title="Supprimer cette entreprise et tous ses brouillons">{{ icons.trash() }}supprimer</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  {% endif %}
+{% endblock %}

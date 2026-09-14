@@ -1,0 +1,20 @@
+# Secrets — ne JAMAIS committer ce fichier (clés API, mot de passe Gmail)
+.env
+
+# Base de données locale — contient vos vraies entreprises/contacts/brouillons
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# PyCharm
+.idea/
+
+# Système
+.DS_Store
+Thumbs.db

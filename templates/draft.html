@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}{{ d.company_name }} — Job2Mail{% endblock %}
+{% block content %}
+  <a href="{{ url_for('index') }}" class="back">&larr; retour</a>
+  <h1>{{ d.company_name }}</h1>
+  <p class="meta">
+    {% if d.city %}{{ icons.map_pin() }}{{ d.city }}{% endif %}
+    {% if d.domain %}{{ icons.globe() }}<a href="https://{{ d.domain }}" target="_blank" rel="noopener">{{ d.domain }}</a>{% endif %}
+    <span class="badge badge-{{ d.status }}">{{ status_labels.get(d.status, d.status) }}</span>
+  </p>
+
+  {% if d.industry or d.employee_count or d.short_description %}
+    <p class="meta">
+      {% if d.industry %}{{ icons.building() }}{{ d.industry }}{% endif %}
+      {% if d.employee_count %}<span class="muted">{% if d.industry %} · {% endif %}{{ d.employee_count }} salarié(e)s (estimation Apollo)</span>{% endif %}
+    </p>
+    {% if d.short_description %}<p class="hint">{{ d.short_description }}</p>{% endif %}
+  {% endif %}
+
+  {% if not d.contact_email %}
+    <p class="flash flash-warning">{{ icons.alert_triangle() }}<span>Aucun contact trouvé pour cette entreprise — l'envoi n'est pas possible depuis ici.</span></p>
+  {% elif quotas.send_reached and d.status != 'sent' %}
+    <p class="flash flash-warning">
+      {{ icons.alert_triangle() }}
+      <span>Quota quotidien de {{ quotas.send.limit }} candidatures atteint ({{ quotas.send.used }}/{{ quotas.send.limit }})
+      — revenez demain pour envoyer celle-ci.</span>
+    </p>
+  {% else %}
+    <p class="meta">{{ icons.mail() }}Destinataire : <strong>{{ d.contact_email }}</strong>
+      {% if d.first_name %}({{ d.first_name }} {{ d.last_name or '' }}{% if d.position %}, {{ d.position }}{% endif %}){% endif %}
+    </p>
+  {% endif %}
+
+  <form method="post" class="form">
+    <label>
+      Objet
+      <input type="text" name="subject" value="{{ d.subject }}">
+    </label>
+    <label>
+      Message
+      <textarea name="body" rows="16">{{ d.body }}</textarea>
+    </label>
+
+    <div class="actions">
+      <button type="submit" name="action" value="save">{{ icons.pencil() }}Enregistrer</button>
+      <button type="submit" name="action" value="mark_ready">{{ icons.check_circle() }}Marquer prêt</button>
+      {% if d.contact_email %}
+        {% if quotas.send_reached and d.status != 'sent' %}
+          <button type="button" class="primary" disabled title="Quota quotidien atteint — revenez demain">{{ icons.paper_plane() }}Envoyer</button>
+        {% else %}
+          <button type="submit" name="action" value="send" class="primary"
+            onclick="return confirm('Envoyer ce mail maintenant à {{ d.contact_email }} ?');">
+            {{ icons.paper_plane() }}Envoyer
+          </button>
+        {% endif %}
+      {% endif %}
+      <button type="submit" name="action" value="decline" class="danger">{{ icons.x_circle() }}Écarter</button>
+    </div>
+  </form>
+
+  <form method="post" action="{{ url_for('supprimer_entreprise', company_id=d.company_id) }}"
+    class="actions" style="margin-top: 10px;"
+    onsubmit="return confirm('Supprimer définitivement cette entreprise et tous ses brouillons ?');">
+    <button type="submit" class="danger">{{ icons.trash() }}Supprimer l'entreprise</button>
+  </form>
+
+  {% if d.followup_number %}<p class="meta">{{ icons.chat() }}Relance n°{{ d.followup_number }}</p>{% endif %}
+  {% if d.sent_at %}<p class="meta">{{ icons.paper_plane() }}Envoyé le {{ d.sent_at }}</p>{% endif %}
+
+  {% if d.status == 'replied' %}
+    <div class="flash flash-success">
+      {{ icons.chat() }}
+      <span>
+        <strong>Réponse reçue</strong>{% if d.replied_at %} le {{ d.replied_at }}{% endif %}
+        {% if d.reply_snippet %}<br><span class="muted">« {{ d.reply_snippet }} »</span>{% endif %}
+      </span>
+    </div>
+  {% endif %}
+{% endblock %}
