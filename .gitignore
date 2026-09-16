@@ -1,20 +1,24 @@
-# Secrets — ne JAMAIS committer ce fichier (clés API, mot de passe Gmail)
+# Secrets — ne JAMAIS pousser ce fichier (mot de passe Gmail, clés API...)
 .env
 
-# Base de données locale — contient vos vraies entreprises/contacts/brouillons
-data/*.db
-data/*.db-wal
-data/*.db-shm
+# Données personnelles générées par l'appli (base SQLite, pièces jointes
+# envoyées type CV) — spécifiques à votre machine, pas du code.
+data/job2mail.db
+data/job2mail.db-journal
+data/job2mail.db-wal
+data/job2mail.db-shm
+data/attachments/*
+!data/attachments/.gitkeep
 
 # Python
 __pycache__/
 *.pyc
-venv/
 .venv/
+venv/
+env/
 
-# PyCharm
+# Éditeurs / OS
+.vscode/
 .idea/
-
-# Système
 .DS_Store
 Thumbs.db

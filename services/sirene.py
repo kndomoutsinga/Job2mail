@@ -65,7 +65,8 @@ def _extract_result(item):
     }
 
 
-def _search_one_naf(postal_code=None, city=None, naf_code=None, per_page=25):
+def _search_one_naf(postal_code=None, city=None, naf_code=None, company_name=None,
+                     departement=None, region=None, per_page=25):
     params = {
         "etat_administratif": "A",  # établissements actifs uniquement
         "per_page": min(per_page, 25),
@@ -75,10 +76,21 @@ def _search_one_naf(postal_code=None, city=None, naf_code=None, per_page=25):
         params["activite_principale"] = _normalize_naf(naf_code)
     if postal_code:
         params["code_postal"] = postal_code
-    elif city:
-        # Pas de code postal fourni : recherche textuelle sur le nom de la
-        # commune, moins précise mais fonctionnelle.
-        params["q"] = city
+    if departement:
+        params["departement"] = departement
+    if region:
+        params["region"] = region
+
+    # Recherche texte libre : l'API fait une recherche floue sur la
+    # dénomination et l'adresse, donc nom d'entreprise et ville (en fallback
+    # si pas de code postal) peuvent se combiner dans une seule requête "q".
+    q_parts = []
+    if company_name:
+        q_parts.append(company_name)
+    if city and not postal_code:
+        q_parts.append(city)
+    if q_parts:
+        params["q"] = " ".join(q_parts)
 
     try:
         resp = requests.get(SEARCH_URL, params=params, timeout=20)
@@ -94,11 +106,19 @@ def _search_one_naf(postal_code=None, city=None, naf_code=None, per_page=25):
     return data.get("results", [])
 
 
-def search_establishments(city=None, postal_code=None, naf_codes=None, max_results=50):
+def search_establishments(city=None, postal_code=None, company_name=None, naf_codes=None,
+                           departement=None, region=None, max_results=50):
     """
-    Recherche des établissements actifs pour une ville/code postal et une
-    liste de codes NAF (activités). Retourne une liste de dicts simplifiés,
-    prêts pour models.upsert_company().
+    Recherche des établissements actifs. Usages combinables :
+    - par ville/code postal + codes NAF, pour explorer un secteur/une zone ;
+    - par département ou région (codes INSEE — voir services/geo.py pour la
+      résolution nom -> code), pour couvrir toute une zone administrative
+      d'un coup sans lister ses villes une à une ;
+    - par company_name, pour retrouver une entreprise précise repérée par
+      ailleurs (nom qui plaît, offre vue quelque part...), quel que soit
+      son secteur — dans ce cas naf_codes est généralement laissé à None
+      par l'appelant pour ne pas filtrer par erreur.
+    Retourne une liste de dicts simplifiés, prêts pour models.upsert_company().
     """
     naf_codes = naf_codes or [None]  # None = pas de filtre NAF, une seule passe
 
@@ -110,6 +130,7 @@ def search_establishments(city=None, postal_code=None, naf_codes=None, max_resul
             break
         raw_items = _search_one_naf(
             postal_code=postal_code, city=city, naf_code=naf_code,
+            company_name=company_name, departement=departement, region=region,
             per_page=min(max_results, 25),
         )
         for item in raw_items:

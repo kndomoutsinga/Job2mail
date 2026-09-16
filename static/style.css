@@ -116,6 +116,17 @@ main {
 h1 { margin: 0 0 6px; font-size: 26px; font-weight: 700; }
 .hint { color: var(--muted); font-size: 14px; line-height: 1.55; }
 
+/* ---------- Sites fusionnés (même contact, voir draft.html) ---------- */
+.merged-sites {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 4px 0 16px;
+  background: var(--surface-alt, #F7F4EC);
+}
+.merged-sites-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.merged-sites-list li { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+
 .header-row {
   display: flex;
   align-items: center;
@@ -310,6 +321,17 @@ table.drafts tbody tr:last-child td { border-bottom: none; }
 .icon-btn:hover { background: #F0ECE1; color: var(--brand); }
 .icon-btn.danger-link:hover { background: var(--danger-bg); color: var(--danger); }
 .icon-btn .icon { width: 15px; height: 15px; }
+.icon-btn.is-disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+
+/* ---------- Pagination (tableau de bord) ---------- */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 14px;
+}
+.pagination-status { color: var(--muted); font-size: 13px; }
 
 /* ---------- Followups section ---------- */
 
@@ -349,7 +371,15 @@ section.followups h2 .icon { color: var(--accent); }
 
 /* ---------- Forms ---------- */
 
-.form { display: flex; flex-direction: column; gap: 18px; max-width: 640px; }
+.form { display: flex; flex-direction: column; gap: 18px; max-width: 720px; }
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 640px) {
+  .form-row { grid-template-columns: 1fr; }
+}
 .form label { display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; font-weight: 600; }
 .form .label-text { display: inline-flex; align-items: center; gap: 6px; }
 .form input[type=text], .form input[type=number], .form textarea {
@@ -383,6 +413,13 @@ section.followups h2 .icon { color: var(--accent); }
   letter-spacing: 0.5px;
   padding: 0 4px;
 }
+/* Codes NAF grisés quand ignorés (recherche par nom d'entreprise) — voir
+   templates/recherche.html */
+#naf-fieldset.is-ignored { opacity: 0.45; }
+#naf-fieldset .naf-ignored-hint { display: none; width: 100%; margin: 0; }
+#naf-fieldset.is-ignored .naf-ignored-hint { display: block; }
+#naf-fieldset.is-ignored .checkbox { cursor: not-allowed; }
+
 .form .checkbox {
   flex-direction: row;
   align-items: center;
@@ -426,6 +463,15 @@ button.primary:hover { background: var(--accent-dark); border-color: var(--accen
 button.danger { border-color: #E6B8BD; color: var(--danger); }
 button.danger:hover { background: var(--danger-bg); border-color: var(--danger); }
 button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* Bouton "recherche en cours" (voir templates/recherche.html) : les deux
+   libellés existent toujours dans le HTML, seule la classe .is-loading sur
+   le bouton bascule lequel est visible — pas de contenu injecté en JS. */
+.btn-label-loading { display: none; align-items: center; gap: 8px; }
+#btn-recherche.is-loading .btn-label-default { display: none; }
+#btn-recherche.is-loading .btn-label-loading { display: inline-flex; }
+#btn-recherche.is-loading svg { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

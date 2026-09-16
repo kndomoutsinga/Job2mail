@@ -46,6 +46,10 @@
     <a href="{{ url_for('index', statut='replied') }}" class="{{ 'active' if current_status == 'replied' else '' }}">Réponses</a>
     <a href="{{ url_for('index', statut='declined') }}" class="{{ 'active' if current_status == 'declined' else '' }}">Écartés</a>
   </div>
+  {# NB : le filtre par statut ne conserve pas de "page" dans son lien —
+     changer de filtre repart volontairement à la page 1 (voir clamp côté
+     serveur dans app.py, qui gère aussi le cas où l'URL garderait un
+     ?page= trop grand pour le nouveau filtre). #}
 
   {% if followup_candidates %}
     <section class="followups">
@@ -97,9 +101,15 @@
         <tr>
           <td>
             {{ d.company_name }}
+            {% set merged = d.merged_sites | fromjson %}
+            {% if merged %}<span class="muted" title="Même contact, un seul mail pour le groupe">+ {{ merged | length }} site(s)</span>{% endif %}
             {% if d.followup_number %}<span class="muted">(relance {{ d.followup_number }})</span>{% endif %}
+            {% if d.hiring_signal %}<span class="badge badge-sent" title="{{ d.hiring_offers_count }} offre(s) publiée(s) actuellement (France Travail)">recrute</span>{% endif %}
+            {% if d.lbb_is_high_potential %}<span class="badge badge-sent" title="Score {{ d.lbb_hiring_potential }}/100 dans les 6 prochains mois (La Bonne Boîte, France Travail)">fort potentiel</span>{% endif %}
+            {% if merged | selectattr('hiring_signal') | list %}<span class="badge badge-sent" title="Un autre site fusionné recrute aussi">recrute (site fusionné)</span>{% endif %}
+            {% if merged | selectattr('lbb_is_high_potential') | list %}<span class="badge badge-sent" title="Un autre site fusionné a un fort potentiel d'embauche">fort potentiel (site fusionné)</span>{% endif %}
           </td>
-          <td>{{ d.city or '—' }}</td>
+          <td>{{ d | merged_cities }}</td>
           <td>
             {% if d.contact_email %}
               {{ d.contact_email }}
@@ -126,5 +136,21 @@
       </tbody>
     </table>
     </div>
+
+    {% if total_pages > 1 %}
+      <nav class="pagination">
+        {% if page > 1 %}
+          <a href="{{ url_for('index', statut=current_status, page=page - 1) }}" class="icon-btn">&larr; précédent</a>
+        {% else %}
+          <span class="icon-btn is-disabled">&larr; précédent</span>
+        {% endif %}
+        <span class="pagination-status">Page {{ page }} / {{ total_pages }}</span>
+        {% if page < total_pages %}
+          <a href="{{ url_for('index', statut=current_status, page=page + 1) }}" class="icon-btn">suivant &rarr;</a>
+        {% else %}
+          <span class="icon-btn is-disabled">suivant &rarr;</span>
+        {% endif %}
+      </nav>
+    {% endif %}
   {% endif %}
 {% endblock %}

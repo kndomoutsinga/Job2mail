@@ -18,6 +18,46 @@
     {% if d.short_description %}<p class="hint">{{ d.short_description }}</p>{% endif %}
   {% endif %}
 
+  {% if d.hiring_signal %}
+    <p class="meta"><span class="badge badge-sent">recrute actuellement</span>
+      <span class="muted">{{ d.hiring_offers_count }} offre(s) publiée(s) en ce moment (France Travail)</span>
+    </p>
+  {% endif %}
+
+  {% if d.lbb_is_high_potential %}
+    <p class="meta"><span class="badge badge-sent">fort potentiel d'embauche</span>
+      <span class="muted">score {{ d.lbb_hiring_potential }}/100 dans les 6 prochains mois (La Bonne Boîte, France Travail)</span>
+    </p>
+  {% endif %}
+
+  {% if d.employer_page_found %}
+    {% set ft_labels = (d.employer_page_labels | fromjson) + (d.employer_page_badges | fromjson) + (d.employer_page_avantages | fromjson) %}
+    {% if ft_labels %}
+      <p class="hint">
+        Page employeur France Travail — {{ ft_labels | join(' · ') }}
+      </p>
+    {% endif %}
+  {% endif %}
+
+  {% set merged_sites = d.merged_sites | fromjson %}
+  {% if merged_sites %}
+    <div class="merged-sites">
+      <p class="hint">
+        Même contact ({{ d.contact_email }}) retrouvé pour {{ merged_sites | length }} autre(s) site(s)
+        du groupe — un seul mail part pour tout le monde, mais voici où ça recrute :
+      </p>
+      <ul class="merged-sites-list">
+        {% for s in merged_sites %}
+          <li>
+            {{ s.company_name }}{% if s.city %} — {{ s.city }}{% endif %}
+            {% if s.hiring_signal %}<span class="badge badge-sent">recrute</span>{% endif %}
+            {% if s.lbb_is_high_potential %}<span class="badge badge-sent" title="Score {{ s.lbb_hiring_potential }}/100">fort potentiel</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
   {% if not d.contact_email %}
     <p class="flash flash-warning">{{ icons.alert_triangle() }}<span>Aucun contact trouvé pour cette entreprise — l'envoi n'est pas possible depuis ici.</span></p>
   {% elif quotas.send_reached and d.status != 'sent' %}
@@ -32,7 +72,7 @@
     </p>
   {% endif %}
 
-  <form method="post" class="form">
+  <form method="post" class="form" enctype="multipart/form-data">
     <label>
       Objet
       <input type="text" name="subject" value="{{ d.subject }}">
@@ -40,6 +80,22 @@
     <label>
       Message
       <textarea name="body" rows="16">{{ d.body }}</textarea>
+    </label>
+
+    <label>
+      Pièce jointe
+      {% if d.attachment_filename %}
+        <p class="meta">
+          📎 <a href="{{ url_for('draft_attachment', draft_id=d.id) }}" target="_blank" rel="noopener">{{ d.attachment_original_name or d.attachment_filename }}</a>
+          <label class="muted" style="font-weight: normal; display: inline-flex; align-items: center; gap: 4px; margin-left: 10px;">
+            <input type="checkbox" name="remove_attachment" value="1"> retirer
+          </label>
+        </p>
+        <span class="hint">Choisir un autre fichier ci-dessous le remplacera.</span>
+      {% else %}
+        <span class="hint">CV, portfolio en PDF, image... ce que tu veux — optionnel.</span>
+      {% endif %}
+      <input type="file" name="attachment">
     </label>
 
     <div class="actions">
